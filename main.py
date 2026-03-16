@@ -271,24 +271,18 @@ def process_item(context: BrowserContext, item: Dict[str, str], index: int, out_
         try_submit_passcode(page, item.get("codigo", ""))
         dismiss_cookie_or_modal(page)
 
-        aria2_links = []
         buttons = collect_download_buttons(page)
         saved = 0
         if buttons:
             for btn in buttons:
                 try:
-                    # Extraer href si es <a>, sino descargar normalmente
-                    href = btn.get_attribute("href") if btn.evaluate("el => el.tagName.toLowerCase() === 'a'") else None
-                    if href:
-                        aria2_links.append(href)
-                    else:
-                        with page.expect_download(timeout=15000) as dl_info:
-                            btn.click(timeout=5000)
-                        download = dl_info.value
-                        path = save_download(download, target_dir, prefix, saved + 1)
-                        saved += 1
-                        log(f"[OK] Descargado: {path}")
-                        time.sleep(1)
+                    with page.expect_download(timeout=15000) as dl_info:
+                        btn.click(timeout=5000)
+                    download = dl_info.value
+                    path = save_download(download, target_dir, prefix, saved + 1)
+                    saved += 1
+                    log(f"[OK] Descargado: {path}")
+                    time.sleep(1)
                 except PlaywrightTimeoutError:
                     continue
                 except Exception as exc:
@@ -304,42 +298,18 @@ def process_item(context: BrowserContext, item: Dict[str, str], index: int, out_
                     for i in range(count):
                         link = download_links.nth(i)
                         if link.is_visible(timeout=5000):
-                            href = link.get_attribute("href")
-                            if href:
-                                aria2_links.append(href)
-                            else:
-                                with page.expect_download(timeout=15000) as dl_info:
-                                    link.click(timeout=5000)
-                                download = dl_info.value
-                                path = save_download(download, target_dir, prefix, saved + 1)
-                                log(f"[OK] Descargado desde web player: {path}")
-                                saved += 1
+                            with page.expect_download(timeout=15000) as dl_info:
+                                link.click(timeout=5000)
+                            download = dl_info.value
+                            path = save_download(download, target_dir, prefix, saved + 1)
+                            log(f"[OK] Descargado desde web player: {path}")
+                            saved += 1
                 else:
                     log("[WARN] No se encontraron enlaces de descarga en el web player.")
             except Exception as exc:
                 log(f"[WARN] No se pudo descargar desde los enlaces del web player: {exc}")
 
-        # Guardar enlaces para aria2c y ejecutar descargas
-        if aria2_links:
-            links_file = target_dir / f"{prefix}_aria2c.txt"
-            with open(links_file, "w", encoding="utf-8") as f:
-                for url in aria2_links:
-                    f.write(url + "\n")
-            log(f"[INFO] Enlaces guardados para aria2c: {links_file}")
-
-            # Ejecutar aria2c para descargar todos los enlaces
-            import subprocess
-            aria2_cmd = ["aria2c", "-x", "16", "-j", "8", "-d", str(target_dir), "-i", str(links_file)]
-            try:
-                log(f"[INFO] Ejecutando aria2c para descargas paralelas...")
-                result = subprocess.run(aria2_cmd, capture_output=True, text=True)
-                log(result.stdout)
-                if result.stderr:
-                    log(f"[WARN] aria2c error: {result.stderr}")
-            except Exception as exc:
-                log(f"[ERROR] No se pudo ejecutar aria2c: {exc}")
-
-        if saved == 0 and not aria2_links:
+        if saved == 0:
             raise RuntimeError("La página abrió, pero no entregó ninguna descarga.")
 
         log(f"[INFO] Última fila procesada: {item['row']}")
@@ -355,8 +325,6 @@ def main() -> int:
     parser.add_argument("--headless", action="store_true", help="Ejecuta sin interfaz gráfica")
     parser.add_argument("--start-row", type=int, default=1, help="Índice lógico para retomar (1 = primer registro válido)")
     parser.add_argument("--limit", type=int, default=0, help="Máximo de registros a procesar. 0 = todos")
-    parser.add_argument("--aria2c", action="store_true", help="Usa aria2c para descargas paralelas (opcional)")
-    parser.add_argument("--aria2c-x", type=int, default=16, help="Conexiones paralelas por archivo para aria2c (default 16)")
     args = parser.parse_args()
 
     if not args.xlsx.exists():
