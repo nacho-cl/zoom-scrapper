@@ -1,0 +1,27 @@
+# Ignorar carpetas de descargas temporales
+Curso */
+Seminario Inicial/
+
+
+# Ignorar archivos de video y descargas temporales
+*.mp4
+*.avi
+*.mov
+download.*
+download
+
+# Ignorar entornos virtuales y dependencias
+.venv/
+__pycache__/
+*.pyc
+
+# Ignorar archivos de configuración locales
+*.env
+
+# Ignorar archivos de salida de aria2c
+*.txt
+
+# Ignorar archivos Excel de trabajo
+
+# Ignorar dependencias no necesarias
+node_modules/
